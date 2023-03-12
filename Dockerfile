@@ -1,0 +1,70 @@
+# -------------------------------------------------------------
+#   KHAN [apm]                        http://www.opennaru.com/
+#   for Container JBoss EAP 7.4.7 Image
+#
+#   contact : service@opennaru.com
+#   Copyright(C) 2015, Opennaru,Inc. All Rights Reserved.
+# -------------------------------------------------------------
+
+FROM registry.redhat.io/ubi8/ubi:8.6-990
+#FROM registry.access.redhat.com/ubi8/ubi-minimal:8.6-994
+
+# intall RPMs
+RUN dnf --setopt=tsflags=nodocs install -y java-1.8.0-openjdk-devel bind-utils unzip procps telnet && \
+    dnf clean all && \
+    rm -rf /var/cache/dnf
+
+# set JAVA_HOME
+ENV JAVA_HOME="/usr/lib/jvm/java-1.8.0"
+
+# make dir require dir
+RUN mkdir -p /app /src/wasadm /log/wasadm/jboss /shared/wasadm
+
+# create wasadm account, set owner 
+RUN groupadd -g 2100 app && \
+    useradd -u 2121 -g 2100 -d /app/wasadm wasadm  && \
+    chown -R wasadm:app /app/wasadm && \
+    chown -R wasadm:app /src/wasadm && \
+    chown -R wasadm:app /log/wasadm && \
+    chown -R wasadm:app /shared/wasadm
+
+# copy jboss engine
+COPY contrib/jboss-eap-7.4.7-oracle-19.8.zip /tmp
+
+# unzip jboss engine
+RUN unzip /tmp/jboss-eap-7.4.7-oracle-19.8.zip -d /app/wasadm/ && \
+    chown -R wasadm:app /app/wasadm && \
+    rm -rf /tmp/jboss-eap-7.4.7-oracle-19.8.zip
+
+# copy require script
+COPY --chown=wasadm:app contrib/env.sh /app/wasadm/jboss/bin/launch/env.sh
+COPY --chown=wasadm:app contrib/start.sh /app/wasadm/jboss/bin/launch/start.sh
+COPY --chown=wasadm:app contrib/encrypt.sh /app/wasadm/jboss/bin/launch/encrypt.sh
+COPY --chown=wasadm:app contrib/standalone.xml /app/wasadm/jboss/standalone/configuration/standalone.xml
+
+# sample application
+#COPY --chown=wasadm:app contrib/session2.war /src/wasadm/session2.war
+#COPY --chown=wasadm:app contrib/session3.war /src/wasadm/session3.war
+#COPY --chown=wasadm:app contrib/ahn-testapp2.war /src/wasadm/ahn-testapp.war
+#ENV GROUP_ID="hklife"
+#ENV CODE_ID="com"
+#RUN mkdir -pv /src/wasadm/$GROUP_ID && \
+#    ln -s /app/wasadm/jboss/standalone/deployments /src/wasadm/$GROUP_ID/$CODE_ID && \
+#    chown -R wasadm. /src/wasadm
+#COPY contrib/session2.war /src/wasadm/$GROUP_ID/$CODE_ID/com.war
+
+# set LANG, TZ, UMASK
+RUN echo "export TZ=Asia/Seoul" >> /app/wasadm/.bashrc && \
+    echo "export LANG=ko_KR.utf8" >> /app/wasadm/.bashrc && \
+    echo "umask 0007" >> /app/wasadm/.bashrc
+
+# set DRM socket file soft link
+RUN ln -s /usr/lib64/libnsl.so.2 /usr/lib64/libnsl.so.1
+
+# expose port
+EXPOSE 17021
+
+# Running
+WORKDIR /app/wasadm
+USER wasadm
+CMD ["/app/wasadm/jboss/bin/launch/start.sh"]

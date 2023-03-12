@@ -1,0 +1,1 @@
+contrib/jboss-eap-7.4.7-oracle-19.8.zip filter=lfs diff=lfs merge=lfs -text
